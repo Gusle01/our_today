@@ -58,20 +58,23 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               const _Bullet('🔒', '연인과는 둘 다 답해야 서로 공개돼요'),
               const Spacer(),
               PrimaryButton(
-                label: '시작하기',
-                icon: Icons.arrow_forward_rounded,
+                label: 'Google로 시작하기',
+                icon: Icons.login,
                 loading: _loading,
                 onPressed: () =>
-                    _signIn(() async => repo.signInAnonymously()),
+                    _signIn(() async => repo.signInWithGoogle()),
               ),
-              const SizedBox(height: 14),
-              const Center(
-                child: Text(
-                  'Google · Apple 로그인은 곧 추가돼요',
-                  style: TextStyle(fontSize: 12, color: AppColors.subtle),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _loading
+                    ? null
+                    : () => _signIn(() async => repo.signInAnonymously()),
+                child: const Text(
+                  '게스트로 둘러보기',
+                  style: TextStyle(color: AppColors.subtle),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               const Center(
                 child: Text(
                   '시작하면 이용약관 및 개인정보처리방침에 동의하게 됩니다.',

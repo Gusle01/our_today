@@ -68,10 +68,37 @@ class FirebaseAuthRepository implements AuthRepository {
     return appUser;
   }
 
-  // Phase 2b 에서 실제 OAuth 구현. 현재는 익명 로그인으로 동작.
   @override
-  Future<AppUser> signInWithGoogle() => signInAnonymously();
+  Future<AppUser> signInWithGoogle() async {
+    final provider = fb.GoogleAuthProvider()..addScope('email');
+    final current = _auth.currentUser;
+    fb.UserCredential cred;
+    if (current != null && current.isAnonymous) {
+      // 익명 계정을 Google 로 승격 → 기존 기록 유지
+      try {
+        cred = await current.linkWithProvider(provider);
+      } on fb.FirebaseAuthException catch (e) {
+        if (e.code == 'credential-already-in-use' ||
+            e.code == 'email-already-in-use') {
+          cred = await _auth.signInWithProvider(provider);
+        } else {
+          rethrow;
+        }
+      }
+    } else {
+      cred = await _auth.signInWithProvider(provider);
+    }
+    final user = cred.user!;
+    await _firestore.collection('users').doc(user.uid).set(
+      {'provider': 'google.com', 'email': user.email},
+      SetOptions(merge: true),
+    );
+    final appUser = await _ensureUserDoc(user);
+    _cached = appUser;
+    return appUser;
+  }
 
+  // Apple 로그인은 유료 Apple Developer Program 필요 → 현재 미지원(게스트 폴백).
   @override
   Future<AppUser> signInWithApple() => signInAnonymously();
 
