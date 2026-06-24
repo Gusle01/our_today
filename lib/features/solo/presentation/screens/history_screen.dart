@@ -278,7 +278,7 @@ class _DayDetailSheet extends StatelessWidget {
               const Text('이 날의 기록이 없어요.',
                   style: TextStyle(color: AppColors.subtle))
             else ...[
-              if (e!.hasEmotion)
+              if (e.hasEmotion)
                 _row('감정', '${e.emotion!.emoji} ${e.emotion!.label}'),
               if (e.hasAnswer) _block('💭 ${q.text}', e.questionAnswer!),
               if (e.hasPraise) _block('💛 칭찬일기', e.praise!),
