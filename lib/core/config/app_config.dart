@@ -6,6 +6,6 @@
 class AppConfig {
   const AppConfig._();
 
-  static const bool useFirebase = false;
+  static const bool useFirebase = true;
   static const String appName = '오늘의 우리';
 }
