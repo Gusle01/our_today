@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:our_today/core/theme/app_colors.dart';
 import 'package:our_today/core/utils/date_key.dart';
 import 'package:our_today/core/widgets/primary_button.dart';
 import 'package:our_today/features/solo/presentation/providers/solo_providers.dart';

@@ -258,8 +258,9 @@ class _DayDetailSheet extends StatelessWidget {
     final e = entry;
     final hasContent =
         e != null && (e.hasAnswer || e.hasEmotion || e.hasPraise);
-    final q = (e?.questionId != null)
-        ? QuestionBank.byId(e!.questionId!)
+    final qid = e?.questionId;
+    final q = qid != null
+        ? QuestionBank.byId(qid)
         : QuestionBank.forDateKey(dateKey);
 
     return SafeArea(
