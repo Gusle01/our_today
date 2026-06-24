@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:our_today/content/question_bank.dart';
 import 'package:our_today/core/theme/app_colors.dart';
 import 'package:our_today/core/utils/date_key.dart';
+import 'package:our_today/features/auth/presentation/providers/auth_providers.dart';
+import 'package:our_today/features/couple/domain/entities/couple_day.dart';
+import 'package:our_today/features/couple/presentation/providers/couple_providers.dart';
 import 'package:our_today/features/solo/domain/entities/emotion.dart';
 import 'package:our_today/features/solo/domain/entities/solo_entry.dart';
 import 'package:our_today/features/solo/presentation/providers/solo_providers.dart';
@@ -44,6 +47,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           final byKey = {for (final e in entries) e.dateKey: e};
           final monthEntries =
               entries.where((e) => e.dateKey.startsWith(monthPrefix)).toList();
+          final couple = ref.watch(coupleProvider).valueOrNull;
+          final myUid = ref.watch(currentUserProvider)?.uid;
+          final coupleDays = couple != null
+              ? {
+                  for (final d in (ref.watch(coupleDaysProvider).valueOrNull ??
+                      const <CoupleDay>[]))
+                    d.dateKey: d
+                }
+              : const <String, CoupleDay>{};
+          final partnerUid = (couple != null && myUid != null)
+              ? couple.memberUids.firstWhere((u) => u != myUid, orElse: () => '')
+              : '';
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -55,7 +70,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               _CalendarGrid(
                 month: _month,
                 byKey: byKey,
-                onTapDay: (key) => _openDay(context, byKey[key], key),
+                onTapDay: (key) => _openDay(
+                    context, byKey[key], key, coupleDays[key], partnerUid),
               ),
               const SizedBox(height: 28),
               const Text('이번 달 감정 분포',
@@ -69,13 +85,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     );
   }
 
-  void _openDay(BuildContext context, SoloEntry? entry, String dateKey) {
+  void _openDay(BuildContext context, SoloEntry? entry, String dateKey,
+      CoupleDay? coupleDay, String partnerUid) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => _DayDetailSheet(dateKey: dateKey, entry: entry),
+      builder: (_) => _DayDetailSheet(
+        dateKey: dateKey,
+        entry: entry,
+        coupleDay: coupleDay,
+        partnerUid: partnerUid,
+      ),
     );
   }
 }
@@ -248,10 +270,17 @@ class _EmotionDistribution extends StatelessWidget {
 }
 
 class _DayDetailSheet extends StatelessWidget {
-  const _DayDetailSheet({required this.dateKey, required this.entry});
+  const _DayDetailSheet({
+    required this.dateKey,
+    required this.entry,
+    this.coupleDay,
+    this.partnerUid = '',
+  });
 
   final String dateKey;
   final SoloEntry? entry;
+  final CoupleDay? coupleDay;
+  final String partnerUid;
 
   @override
   Widget build(BuildContext context) {
@@ -262,6 +291,13 @@ class _DayDetailSheet extends StatelessWidget {
     final q = qid != null
         ? QuestionBank.byId(qid)
         : QuestionBank.forDateKey(dateKey);
+
+    final partnerEmotion =
+        partnerUid.isNotEmpty ? coupleDay?.emotionOf(partnerUid) : null;
+    final partnerAnswer =
+        partnerUid.isNotEmpty ? coupleDay?.answerOf(partnerUid) : null;
+    final hasPartner = partnerEmotion != null ||
+        (partnerAnswer != null && partnerAnswer.isNotEmpty);
 
     return SafeArea(
       child: Padding(
@@ -274,14 +310,37 @@ class _DayDetailSheet extends StatelessWidget {
                 style:
                     const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
             const SizedBox(height: 16),
-            if (!hasContent)
+            if (!hasContent && !hasPartner)
               const Text('이 날의 기록이 없어요.',
-                  style: TextStyle(color: AppColors.subtle))
-            else ...[
+                  style: TextStyle(color: AppColors.subtle)),
+            if (hasContent) ...[
+              const Text('나',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.seed,
+                      fontSize: 13)),
+              const SizedBox(height: 8),
               if (e.hasEmotion)
                 _row('감정', '${e.emotion!.emoji} ${e.emotion!.label}'),
               if (e.hasAnswer) _block('💭 ${q.text}', e.questionAnswer!),
               if (e.hasPraise) _block('💛 칭찬일기', e.praise!),
+            ],
+            if (hasPartner) ...[
+              if (hasContent) const Divider(height: 28),
+              const Text('💞 연인',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.seed,
+                      fontSize: 13)),
+              const SizedBox(height: 8),
+              if (partnerEmotion != null)
+                _row('감정', '${partnerEmotion.emoji} ${partnerEmotion.label}'),
+              if (partnerAnswer != null && partnerAnswer.isNotEmpty)
+                _block('💭 ${q.text}', partnerAnswer),
+              if (partnerEmotion != null &&
+                  (partnerAnswer == null || partnerAnswer.isEmpty))
+                const Text('답변은 둘 다 작성하면 공개돼요',
+                    style: TextStyle(color: AppColors.subtle, fontSize: 13)),
             ],
           ],
         ),

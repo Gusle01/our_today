@@ -5,12 +5,15 @@ import 'package:our_today/core/utils/date_key.dart';
 import 'package:our_today/core/utils/invite_code.dart';
 import 'package:our_today/features/couple/domain/entities/couple.dart';
 import 'package:our_today/features/couple/domain/entities/couple_daily_answer.dart';
+import 'package:our_today/features/couple/domain/entities/couple_day.dart';
 import 'package:our_today/features/couple/domain/repositories/couple_repository.dart';
+import 'package:our_today/features/solo/domain/entities/emotion.dart';
 
 class _DayState {
   String? myText;
   bool partnerAnswered = false;
   String? partnerText;
+  final Map<String, String> emotions = {};
 }
 
 /// 인메모리 Mock 커플 저장소. 블라인드 리빌을 가짜 상대로 시연한다.
@@ -107,6 +110,36 @@ class MockCoupleRepository implements CoupleRepository {
     _maybeReveal(dateKey);
     _emit();
   }
+
+  @override
+  Future<void> setEmotion(String dateKey, Emotion emotion) async {
+    _dayOf(dateKey).emotions[_myUid] = emotion.name;
+    _emit();
+  }
+
+  @override
+  Stream<List<CoupleDay>> watchDays() => _watch(() {
+        return _days.entries.map((e) {
+          final st = e.value;
+          final emotions = <String, Emotion>{};
+          st.emotions.forEach((k, v) {
+            final em = Emotion.fromName(v);
+            if (em != null) emotions[k] = em;
+          });
+          final revealed = _isRevealed(st);
+          final answers = <String, String>{};
+          if (revealed) {
+            answers[_myUid] = st.myText ?? '';
+            answers[_partnerUid] = st.partnerText ?? '';
+          }
+          return CoupleDay(
+            dateKey: e.key,
+            emotions: emotions,
+            answers: answers,
+            revealed: revealed,
+          );
+        }).toList();
+      });
 
   @override
   Future<void> simulatePartnerAnswer(String dateKey) async {

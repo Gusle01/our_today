@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:our_today/content/question_bank.dart';
+import 'package:our_today/core/config/app_config.dart';
+import 'package:our_today/core/error/failure.dart';
 import 'package:our_today/core/theme/app_colors.dart';
 import 'package:our_today/core/utils/date_key.dart';
 import 'package:our_today/core/widgets/primary_button.dart';
@@ -56,9 +58,18 @@ class _ConnectViewState extends ConsumerState<_ConnectView> {
     final code = _codeController.text.trim();
     if (code.isEmpty) return;
     setState(() => _connecting = true);
-    await ref.read(coupleRepositoryProvider).connectWithCode(code);
-    // 연결되면 coupleProvider 가 갱신되어 자동으로 홈 화면으로 전환된다.
-    if (mounted) setState(() => _connecting = false);
+    try {
+      await ref.read(coupleRepositoryProvider).connectWithCode(code);
+      // 연결되면 coupleProvider 가 갱신되어 자동으로 홈 화면으로 전환된다.
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e is Failure ? e.message : '연결에 실패했어요')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _connecting = false);
+    }
   }
 
   @override
@@ -355,14 +366,18 @@ class _RevealBody extends StatelessWidget {
         child: Text(text, style: const TextStyle(color: AppColors.subtle)),
       );
 
-  Widget _simulateButton() => Padding(
-        padding: const EdgeInsets.only(top: 16),
-        child: OutlinedButton.icon(
-          onPressed: onSimulatePartner,
-          icon: const Icon(Icons.science_outlined, size: 18),
-          label: Text('$partnerName 답변 시뮬레이트 (데모)'),
-        ),
-      );
+  Widget _simulateButton() {
+    // Firebase 모드에선 상대 답변을 대신 쓸 수 없음(보안규칙) → 버튼 숨김
+    if (AppConfig.useFirebase) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: OutlinedButton.icon(
+        onPressed: onSimulatePartner,
+        icon: const Icon(Icons.science_outlined, size: 18),
+        label: Text('$partnerName 답변 시뮬레이트 (데모)'),
+      ),
+    );
+  }
 
   Widget _answerCard(String name, String text, {Color? color}) {
     return Container(

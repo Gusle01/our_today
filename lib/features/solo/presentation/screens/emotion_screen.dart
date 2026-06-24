@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:our_today/core/theme/app_colors.dart';
 import 'package:our_today/core/utils/date_key.dart';
 import 'package:our_today/core/widgets/primary_button.dart';
+import 'package:our_today/features/couple/presentation/providers/couple_providers.dart';
 import 'package:our_today/features/solo/domain/entities/emotion.dart';
 import 'package:our_today/features/solo/presentation/providers/solo_providers.dart';
 
@@ -41,6 +42,9 @@ class _EmotionScreenState extends ConsumerState<EmotionScreen> {
     await ref
         .read(soloRepositoryProvider)
         .saveEmotion(todayKey(), sel, memo: memo.isEmpty ? null : memo);
+    if (ref.read(isConnectedProvider)) {
+      await ref.read(coupleRepositoryProvider).setEmotion(todayKey(), sel);
+    }
     if (mounted) {
       setState(() => _saving = false);
       Navigator.of(context).pop();
