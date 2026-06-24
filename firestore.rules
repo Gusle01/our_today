@@ -1,0 +1,91 @@
+rules_version = '2';
+
+// ──────────────────────────────────────────────────────────────
+// "오늘의 우리" Firestore 보안 규칙
+// 핵심: 블라인드 리빌 무결성 = "내가 제출해야 상대 답을 읽을 수 있다"
+// (5단계 DB 설계 문서 참조)
+// ──────────────────────────────────────────────────────────────
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function authed() {
+      return request.auth != null;
+    }
+
+    function isMember(coupleId) {
+      return authed()
+        && exists(/databases/$(database)/documents/couples/$(coupleId))
+        && request.auth.uid in get(/databases/$(database)/documents/couples/$(coupleId)).data.memberUids;
+    }
+
+    function myResponseExists(coupleId, dateKey) {
+      return exists(/databases/$(database)/documents/coupleAnswers/$(coupleId)/days/$(dateKey)/responses/$(request.auth.uid));
+    }
+
+    function dayRevealed(coupleId, dateKey) {
+      return exists(/databases/$(database)/documents/coupleAnswers/$(coupleId)/days/$(dateKey))
+        && get(/databases/$(database)/documents/coupleAnswers/$(coupleId)/days/$(dateKey)).data.revealed == true;
+    }
+
+    // ── 사용자: 본인만 ──
+    match /users/{uid} {
+      allow read, write: if authed() && request.auth.uid == uid;
+
+      // 혼자 모드 기록: 본인만
+      match /entries/{dateKey} {
+        allow read, write: if authed() && request.auth.uid == uid;
+      }
+    }
+
+    // ── 질문 풀 / 스케줄: 읽기 전용(쓰기는 콘솔/관리자) ──
+    match /questions/{questionId} {
+      allow read: if authed();
+      allow write: if false;
+    }
+    match /questionSchedule/{dateKey} {
+      allow read: if authed();
+      allow write: if false;
+    }
+
+    // ── 커플 ──
+    match /couples/{coupleId} {
+      allow read:  if isMember(coupleId);
+      // 생성/연결해제는 클라이언트 트랜잭션 또는 Cloud Function에서 검증
+      allow write: if isMember(coupleId);
+
+      match /days/{dateKey} {
+        allow read, write: if isMember(coupleId);
+
+        // ★ 블라인드 리빌 게이트 ★
+        match /responses/{memberUid} {
+          // 내 답변 작성: 본인 것만
+          allow create: if isMember(coupleId) && memberUid == request.auth.uid;
+
+          // 읽기: 내 답은 항상 / 상대 답은 "내가 이미 제출한 경우"에만
+          allow read: if isMember(coupleId) && (
+            memberUid == request.auth.uid ||
+            myResponseExists(coupleId, dateKey)
+          );
+
+          // 수정·삭제: 본인 것 + 아직 리빌 전(ME_ONLY)일 때만 → 공개 후 잠금
+          allow update, delete: if isMember(coupleId)
+            && memberUid == request.auth.uid
+            && !dayRevealed(coupleId, dateKey);
+        }
+      }
+    }
+
+    // ── 커플 답변(부모 days)의 상위 컬렉션 노출 차단용 기본 거부 ──
+    match /coupleAnswers/{coupleId} {
+      allow read, write: if isMember(coupleId);
+    }
+
+    // ── 초대코드: capability 패턴(코드 docId 를 아는 사람만) ──
+    match /coupleInvites/{code} {
+      allow create: if authed() && request.resource.data.createdByUid == request.auth.uid;
+      allow read:   if authed();   // 짧은 만료시간으로 보호
+      allow update: if authed();   // 수락 시 used 처리(서버 검증 권장)
+      allow delete: if authed() && resource.data.createdByUid == request.auth.uid;
+    }
+  }
+}

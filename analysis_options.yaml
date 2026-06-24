@@ -1,0 +1,6 @@
+include: package:flutter_lints/flutter.yaml
+
+# 프로덕션 전환 시 strict 규칙을 추가한다.
+# linter:
+#   rules:
+#     - prefer_final_locals
