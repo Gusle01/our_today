@@ -26,6 +26,9 @@ class MockAuthRepository implements AuthRepository {
   @override
   Future<AppUser> signInWithApple() => _fakeSignIn();
 
+  @override
+  Future<AppUser> signInAnonymously() => _fakeSignIn();
+
   Future<AppUser> _fakeSignIn() async {
     await Future<void>.delayed(const Duration(milliseconds: 400));
     _current = const AppUser(uid: 'me', nickname: '나', email: 'me@example.com');

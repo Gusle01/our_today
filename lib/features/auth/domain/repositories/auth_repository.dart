@@ -5,6 +5,7 @@ abstract interface class AuthRepository {
   Stream<AppUser?> authStateChanges();
   AppUser? get currentUser;
 
+  Future<AppUser> signInAnonymously();
   Future<AppUser> signInWithGoogle();
   Future<AppUser> signInWithApple();
   Future<void> updateNickname(String nickname);

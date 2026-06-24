@@ -11,6 +11,9 @@ environment:
 # Firebase 패키지는 Phase 2(README 참고)에서 추가한다.
 # ──────────────────────────────────────────────────────────────
 dependencies:
+  cloud_firestore: ^6.6.0
+  firebase_auth: ^6.5.4
+  firebase_core: ^4.11.0
   flutter:
     sdk: flutter
   flutter_riverpod: ^2.5.1   # 상태관리
